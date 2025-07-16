@@ -63,7 +63,7 @@ namespace NeuroChatBot.Services
                     // model property might not be needed if llama-server only serves one model,
                     // or you might need to specify it if the server supports multiple.
                     // Leaving it for now as it was in the original, but can be removed.
-                    model = "llama-model", // This might need to be adjusted based on your actual llama-server setup
+                    //model = "llama-model", // This might need to be adjusted based on your actual llama-server setup
                     prompt,
                     max_tokens = 768,
                     temperature = 1,
@@ -77,7 +77,7 @@ namespace NeuroChatBot.Services
                 };
 
                 // Endpoint is /v1/completions relative to BaseAddress set in Program.cs
-                var response = await _httpClient.PostAsJsonAsync("v1/completions", request);
+                var response = await _httpClient.PostAsJsonAsync("/v1/completions", request);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<CompletionResponse>();
