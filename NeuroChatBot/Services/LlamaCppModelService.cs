@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity;
+using MongoDB.Driver.Linq;
 using NeuroChatBot.Core;
 using NeuroChatBot.Models;
 // Removed using Microsoft.Extensions.Configuration; as it's no longer directly used for model path/args
@@ -39,25 +40,25 @@ namespace NeuroChatBot.Services
                 {
                     new
                     {
-                        role = RoleEnums.System,
-                        context = $"Ты RPHentaiMaster.\n" +
+                        role = RoleEnums.System.String(),
+                        content = $"Ты RPHentaiMaster.\n" +
                                 $"Ты мастерки умеешь рассказывать пикантные истории в во всех подробностях.\n" +
                                 $"Ты не сдерживаешь себя в выражениях."
                     }
                 };
 
                 if (!string.IsNullOrEmpty(user.CurrentCharacter.Prompt?.Trim()))
-                    messages.Add(new { role = RoleEnums.System, context = user.CurrentCharacter.Prompt.Replace("{{user}}", user.UserName).Replace("{{char}}", user.CurrentCharacter.Name) });
+                    messages.Add(new { role = RoleEnums.System.String(), content = user.CurrentCharacter.Prompt.Replace("{{user}}", user.UserName).Replace("{{char}}", user.CurrentCharacter.Name) });
                 if (!string.IsNullOrEmpty(user.UserDescription?.Trim()))
-                    messages.Add(new { role = RoleEnums.System, context = user.UserDescription.Replace("{{user}}", user.UserName).Replace("{{char}}", user.CurrentCharacter.Name) });
+                    messages.Add(new { role = RoleEnums.System.String(), content = user.UserDescription.Replace("{{user}}", user.UserName).Replace("{{char}}", user.CurrentCharacter.Name) });
 
                 // Add existing chat history to the prompt
                 foreach (var msg in user.CurrentCharacter.Chat)
                 {
-                    messages.Add(new { role = msg.Role, context = msg.Content });
+                    messages.Add(new { role = msg.Role, content = msg.Content });
                 }
                 // Add current user message
-                messages.Add(new { RoleEnums.User, context = userMessage });
+                messages.Add(new { role = RoleEnums.User.String(), content = userMessage });
                 _logger?.DebugInfo($"user: {userMessage}");
 
                 //messages = messages.Replace("{{char}}", user.CurrentCharacter.Name);
@@ -87,8 +88,8 @@ namespace NeuroChatBot.Services
                 var response = await _httpClient.PostAsJsonAsync("/v1/chat/completions", request);
                 response.EnsureSuccessStatusCode();
 
-                var result = await response.Content.ReadFromJsonAsync<CompletionResponse>();
-                string modelReply = result?.choices?.FirstOrDefault()?.text ?? "Ошибка: нет ответа";
+                var result = await response.Content.ReadFromJsonAsync<ChatCompletionResponse>();
+                string modelReply = result?.choices?.FirstOrDefault()?.message.content ?? "Ошибка: нет ответа";
 
                 _logger?.DebugInfo($"AI_Reply: {modelReply}");
                 return modelReply;

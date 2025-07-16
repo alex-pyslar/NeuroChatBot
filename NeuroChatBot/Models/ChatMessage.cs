@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Data;
+using System.Diagnostics;
 using MongoDB.Bson.Serialization.Attributes;
 using NeuroChatBot.Services;
 
@@ -8,12 +9,7 @@ namespace NeuroChatBot.Models
     {
         [BsonElement("role")]
         public RoleEnums ERole { get; set; } // null-forgiving operator
-        public string Role => ERole switch
-        {
-            RoleEnums.System => "system",
-            RoleEnums.Assistant => "assistant",
-            RoleEnums.User => "user"
-        };
+        public string Role => ERole.String();
 
         [BsonElement("content")]
         public string Content { get; set; } = null!; // null-forgiving operator
