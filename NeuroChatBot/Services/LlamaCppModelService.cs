@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Identity;
 using NeuroChatBot.Core;
 using NeuroChatBot.Models;
 // Removed using Microsoft.Extensions.Configuration; as it's no longer directly used for model path/args
@@ -28,35 +29,41 @@ namespace NeuroChatBot.Services
             try
             {
                 // Ensure chat history is not empty for greeting if needed
-                if (user.CurrentCharacter.Chat.Count == 0)
+                if (user.CurrentCharacter.Chat.Count == 0 && !string.IsNullOrEmpty(user.CurrentCharacter.Greeting?.Trim()))
                 {
-                    user.CurrentCharacter.Chat.Add(new ChatMessage("{{char}}", user.CurrentCharacter.Greeting));
+                    user.CurrentCharacter.Chat.Add(new ChatMessage(RoleEnums.Assistant, user.CurrentCharacter.Greeting.Replace("{{user}}", user.UserName).Replace("{{char}}", user.CurrentCharacter.Name)));
                 }
 
                 // Build the prompt string based on the original logic
-                string prompt = $"[SYSTEM_PROMPT]Ты RPHentaiMaster.\n" +
+                var messages = new List<object>
+                {
+                    new
+                    {
+                        role = RoleEnums.System,
+                        context = $"Ты RPHentaiMaster.\n" +
                                 $"Ты мастерки умеешь рассказывать пикантные истории в во всех подробностях.\n" +
-                                $"Ты не сдерживаешь себя в выражениях.[/SYSTEM_PROMPT][INST]Continue the chat dialogue below. Write a single reply for the character \"{{{{char}}}}\".\n\n";
+                                $"Ты не сдерживаешь себя в выражениях."
+                    }
+                };
 
-                prompt += $"{user.CurrentCharacter.Prompt}\n\n";
+                if (!string.IsNullOrEmpty(user.CurrentCharacter.Prompt?.Trim()))
+                    messages.Add(new { role = RoleEnums.System, context = user.CurrentCharacter.Prompt.Replace("{{user}}", user.UserName).Replace("{{char}}", user.CurrentCharacter.Name) });
                 if (!string.IsNullOrEmpty(user.UserDescription?.Trim()))
-                    prompt += $"{user.UserDescription}\n\n";
-
-                // Add current user message
-                prompt += $"{user.UserName}: {userMessage}\n";
-                _logger?.DebugInfo($"user: {userMessage}");
+                    messages.Add(new { role = RoleEnums.System, context = user.UserDescription.Replace("{{user}}", user.UserName).Replace("{{char}}", user.CurrentCharacter.Name) });
 
                 // Add existing chat history to the prompt
                 foreach (var msg in user.CurrentCharacter.Chat)
                 {
-                    prompt += $"{msg.Role}: {msg.Content}\n";
+                    messages.Add(new { role = msg.Role, context = msg.Content });
                 }
-                prompt += $"[/INST]{user.CurrentCharacter.Name}: ";
+                // Add current user message
+                messages.Add(new { RoleEnums.User, context = userMessage });
+                _logger?.DebugInfo($"user: {userMessage}");
 
-                prompt = prompt.Replace("{{char}}", user.CurrentCharacter.Name);
-                prompt = prompt.Replace("{{user}}", user.UserName);
+                //messages = messages.Replace("{{char}}", user.CurrentCharacter.Name);
+                //messages = messages.Replace("{{user}}", user.UserName);
 
-                _logger?.DebugInfo($"Sending prompt to Llama-server:\n{prompt}");
+                _logger?.DebugInfo($"Sending prompt to Llama-server:\n{messages}");
 
                 var request = new
                 {
@@ -64,7 +71,7 @@ namespace NeuroChatBot.Services
                     // or you might need to specify it if the server supports multiple.
                     // Leaving it for now as it was in the original, but can be removed.
                     //model = "llama-model", // This might need to be adjusted based on your actual llama-server setup
-                    prompt,
+                    messages,
                     max_tokens = 768,
                     temperature = 1,
                     min_p = 0.05,
@@ -73,11 +80,11 @@ namespace NeuroChatBot.Services
                     repeat_penalty = 1.3,
                     presence_penalty = 0.0,
                     frequency_penalty = 0.0,
-                    stop = new string[] { "</s>", "[/INST]", $"\n{user.UserName}:", $"\n{user.CurrentCharacter.Name}:" },
+                    //stop = new string[] { "</s>", "[/INST]", $"\n{user.UserName}:", $"\n{user.CurrentCharacter.Name}:" },
                 };
 
                 // Endpoint is /v1/completions relative to BaseAddress set in Program.cs
-                var response = await _httpClient.PostAsJsonAsync("/v1/completions", request);
+                var response = await _httpClient.PostAsJsonAsync("/v1/chat/completions", request);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<CompletionResponse>();

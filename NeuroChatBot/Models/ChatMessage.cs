@@ -1,18 +1,26 @@
-﻿using MongoDB.Bson.Serialization.Attributes;
+﻿using System.Diagnostics;
+using MongoDB.Bson.Serialization.Attributes;
+using NeuroChatBot.Services;
 
 namespace NeuroChatBot.Models
 {
     public class ChatMessage
     {
         [BsonElement("role")]
-        public string Role { get; set; } = null!; // null-forgiving operator
+        public RoleEnums ERole { get; set; } // null-forgiving operator
+        public string Role => ERole switch
+        {
+            RoleEnums.System => "system",
+            RoleEnums.Assistant => "assistant",
+            RoleEnums.User => "user"
+        };
 
         [BsonElement("content")]
         public string Content { get; set; } = null!; // null-forgiving operator
 
-        public ChatMessage(string role, string content)
+        public ChatMessage(RoleEnums role, string content)
         {
-            Role = role;
+            ERole = role;
             Content = content;
         }
     }

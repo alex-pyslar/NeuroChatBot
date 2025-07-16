@@ -128,8 +128,8 @@ namespace NeuroChatBot.Services
                 {
                     // If pending command is not recognized, treat as regular chat
                     response = await _modelService.GetModelResponseAsync(user, userMessageText);
-                    await _userService.AddChatMessageToUserAsync(userId, new ChatMessage("{{user}}", userMessageText));
-                    await _userService.AddChatMessageToUserAsync(userId, new ChatMessage("{{char}}", response));
+                    await _userService.AddChatMessageToUserAsync(userId, new ChatMessage(RoleEnums.User, userMessageText));
+                    await _userService.AddChatMessageToUserAsync(userId, new ChatMessage(RoleEnums.Assistant, response));
                     await _userService.SaveUserAsync(user); // Save updated chat and user data
                     lastSentMessageId = await SendMessage(chatId, response, cancellationToken: cancellationToken);
                 }
@@ -149,8 +149,8 @@ namespace NeuroChatBot.Services
             {
                 // Regular chat message
                 response = await _modelService.GetModelResponseAsync(user, userMessageText);
-                await _userService.AddChatMessageToUserAsync(userId, new ChatMessage("{{user}}", userMessageText));
-                await _userService.AddChatMessageToUserAsync(userId, new ChatMessage("{{char}}", response));
+                await _userService.AddChatMessageToUserAsync(userId, new ChatMessage(RoleEnums.User, userMessageText));
+                await _userService.AddChatMessageToUserAsync(userId, new ChatMessage(RoleEnums.Assistant, response));
                 await _userService.SaveUserAsync(user); // Save updated chat and user data
                 lastSentMessageId = await SendMessage(chatId, response, cancellationToken: cancellationToken);
                 _logger.Info($"Sent message to {message.From.Username ?? message.From.FirstName} ({userId}). Request processing time: {(int)(DateTime.Now - user.RequestTime).TotalSeconds} seconds");
